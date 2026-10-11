@@ -1,0 +1,93 @@
+-- Script MM2: Botão de Emotes Permanente no Slot 2
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+local starterGear = player:WaitForChild("StarterGear")
+
+-- Controla o estado da barra de emotes (Aberto/Fechado)
+local menuAberto = false
+
+-- Função para simular o clique da tecla T
+local function alternarMenuT()
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.T, false, game)
+    task.wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
+end
+
+-- Criador da Tool "Emotes"
+local function createEmotesTool()
+    local tool = Instance.new("Tool")
+    tool.Name = "Emotes"
+    tool.RequiresHandle = false
+    tool.CanBeDropped = false
+    tool.Archivable = true
+
+    -- Dispara toda vez que a tecla 2 é pressionada (equipar a tool)
+    tool.Equipped:Connect(function()
+        -- 1. Alterna o estado (Se estava fechado abre; se estava aberto fecha)
+        menuAberto = not menuAberto
+        
+        -- 2. Envia o comando da tecla T para a interface
+        alternarMenuT()
+
+        -- 3. Desequipa a ferramenta instantaneamente da mão
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                task.defer(function()
+                    humanoid:UnequipTools()
+                end)
+            end
+        end
+    end)
+
+    return tool
+end
+
+-- Limpa cópias antigas para evitar duplicação em qualquer lugar
+local function removerDuplicatas()
+    for _, item in ipairs(backpack:GetChildren()) do
+        if item.Name == "Emotes" then item:Destroy() end
+    end
+    for _, item in ipairs(starterGear:GetChildren()) do
+        if item.Name == "Emotes" then item:Destroy() end
+    end
+    if player.Character then
+        for _, item in ipairs(player.Character:GetChildren()) do
+            if item.Name == "Emotes" then item:Destroy() end
+        end
+    end
+end
+
+-- Entrega a tool para o StarterGear e Backpack de forma permanente
+local function giveEmotesTool()
+    removerDuplicatas()
+    
+    -- Coloca no StarterGear para renascer com o jogador
+    local toolStarter = createEmotesTool()
+    toolStarter.Parent = starterGear
+    
+    -- Coloca na mochila atual
+    local toolBackpack = createEmotesTool()
+    toolBackpack.Parent = backpack
+end
+
+-- Execução inicial
+giveEmotesTool()
+
+-- Sempre que o personagem morrer e renascer, recarrega o item e reseta o estado do menu
+player.CharacterAdded:Connect(function(character)
+    menuAberto = false
+    -- Aguarda o personagem e a mochila carregarem totalmente após a morte
+    task.wait(0.5)
+    
+    -- Garante que o item esteja presente na mochila após o respawn
+    if not backpack:FindFirstChild("Emotes") then
+        giveEmotesTool()
+    end
+end)
+
+print("✅ Item 'Emotes' configurado como PERMANENTE (não some ao morrer)!")
